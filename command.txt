@@ -1,1 +1,1 @@
-create an s3 bucket named "ohnoksskssksksskkskskskskkssuueks" and a dynamo db table named "hihibslsllslslskskkskskskssksksyebye" and the dynamo db table will export snapshot to the bucket at 6am UTC everyday
+create an s3 bucket named "siisisiskskskskkssisiissiisisiskskksksksks" and a dynamo db table named "unique-db-tabkskksksksle1" and the dynamo db table will export snapshot to the bucket at 6am UTC everyday

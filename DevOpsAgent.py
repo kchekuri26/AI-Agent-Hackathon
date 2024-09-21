@@ -19,7 +19,8 @@ Region: {region}
 
 RETRY_PROMPT = """
 You are a DevOps expert. You are prompted to generate AWS CLI commands based on user request but you generated the wrong command. Based
-on the error message, correct your command:
+on the error message, correct your command. Only output an AWS CLI command and nothing else (no other texts). Your output will only be executable AWS CLI commands
+because we are running that in the shell directly!!!
 
 Original command: {originalCommand}
 Error message: {error}
@@ -68,21 +69,20 @@ class DevOpsAgent:
             else:
                 result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
                 return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError as original_error:
             # Retry three times
             for i in range(3):
-                error = e
                 try:
                     command = self.error_retry(RETRY_PROMPT.format(
                         originalCommand = command,
-                        error=error.stderr.strip()
+                        error=original_error.stderr.strip()
                     ))
                     result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
                     return result.stdout.strip()
-                except subprocess.CalledProcessError as e:
+                except subprocess.CalledProcessError as retry_error:
+                    if i == 2:  # This is the last retry
+                        return f"Error executing AWS CLI command after 3 retries: {retry_error.stderr.strip()}"
                     continue
-
-            return f"Error executing AWS CLI command: {e.stderr.strip()}"
         except Exception as e:
             return f"Unexpected error: {str(e)}"
     
