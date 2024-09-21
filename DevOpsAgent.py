@@ -62,15 +62,13 @@ class DevOpsAgent:
 
 
     def execute_aws_cli_command(self, command):
-        with console.status("[bold green]Provisioning resources...") as status:
+        with console.status("[bold yellow]Provisioning resources...") as status:
             try:
                 if "create-table" in command:
                     result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
                     time.sleep(15) 
                 else:
                     result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-                console.clear()
-                print("[bold green]🎉 Resources created![bold green]")
             except e:
                 # Retry three times
                 error = e
@@ -98,8 +96,13 @@ class DevOpsAgent:
 
     def process_user_request(self, user_prompt):
         commands = self.generate_aws_cli_processed(user_prompt, SYS_PROMPT)
+        count = 0
         for command in commands:
             self.execute_aws_cli_command(command)
+            count += 1
+            console.clear()
+            console.log(f"Resources created: {count}")
+
             # self.results["commands"].append(command)
             # self.results["results"].append(result)
 
@@ -119,7 +122,9 @@ if __name__ == "__main__":
     
     user_request = Prompt.ask("[bold]Enter your request[/bold]")
     agent.process_user_request(user_request)
-    
+    console.clear()
+    print("[bold green]🎉 Resources created![bold green]")
+
     # print("\nExecution Summary:")
     # for cmd, res in zip(result["commands"], result["results"]):
     #     print(f"Command: {cmd}")
