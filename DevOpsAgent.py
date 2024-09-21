@@ -16,6 +16,15 @@ Account ID: {accountId}
 IAM user: {iamUser}
 Region: {region}
 """
+
+RETRY_PROMPT = """
+You are a DevOps expert. You are prompted to generate AWS CLI commands based on user request but you generated the wrong command. Based
+on the error message, correct your command:
+
+Original command: {originalCommand}
+Error message: {error}
+
+"""
 class DevOpsAgent:
     def __init__(self, account_id, iam_user, region):
         self.model = "claude-3-5-sonnet-20240620"
@@ -38,6 +47,17 @@ class DevOpsAgent:
         )
         return message.content[0].text.strip()
 
+    def error_retry(self, retry_prompt):
+        message = self.client.messages.create(
+            model=self.model,
+            max_tokens=1000,
+            temperature=0,
+            system=retry_prompt,
+            messages=[{"role": "user", "content": retry_prompt}]
+        )
+        return message.content[0].text.strip()
+
+
     def execute_aws_cli_command(self, command):
         try:
             if "create-table" in command:
@@ -49,6 +69,19 @@ class DevOpsAgent:
                 result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
                 return result.stdout.strip()
         except subprocess.CalledProcessError as e:
+            # Retry three times
+            for i in range(3):
+                error = e
+                try:
+                    command = self.error_retry(RETRY_PROMPT.format(
+                        originalCommand = command,
+                        error=error.stderr.strip()
+                    ))
+                    result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+                    return result.stdout.strip()
+                except subprocess.CalledProcessError as e:
+                    continue
+
             return f"Error executing AWS CLI command: {e.stderr.strip()}"
         except Exception as e:
             return f"Unexpected error: {str(e)}"
