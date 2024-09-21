@@ -1,10 +1,12 @@
-import os
-import json
 import anthropic
 from dotenv import load_dotenv
 import subprocess
-import re
 import time
+from rich.prompt import Prompt
+from rich import print
+from rich.console import Console
+
+console = Console()
 
 load_dotenv()
 
@@ -60,32 +62,30 @@ class DevOpsAgent:
 
 
     def execute_aws_cli_command(self, command):
-        try:
-            if "create-table" in command:
-                result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-                print("Waiting for table to become active...")
-                time.sleep(15) 
-                return result.stdout.strip()
-            else:
-                result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-                return result.stdout.strip()
-        except subprocess.CalledProcessError as original_error:
-            # Retry three times
-            for i in range(3):
-                try:
-                    command = self.error_retry(RETRY_PROMPT.format(
-                        originalCommand = command,
-                        error=original_error.stderr.strip()
-                    ))
+        with console.status("[bold green]Provisioning resources...") as status:
+            try:
+                if "create-table" in command:
                     result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-                    return result.stdout.strip()
-                except subprocess.CalledProcessError as retry_error:
-                    if i == 2:  # This is the last retry
-                        return f"Error executing AWS CLI command after 3 retries: {retry_error.stderr.strip()}"
-                    continue
-        except Exception as e:
-            return f"Unexpected error: {str(e)}"
-    
+                    time.sleep(15) 
+                else:
+                    result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+                console.clear()
+                print("[bold green]🎉 Resources created![bold green]")
+            except e:
+                # Retry three times
+                error = e
+                for _ in range(3):
+                    try:
+                        command = self.error_retry(RETRY_PROMPT.format(
+                            originalCommand = command,
+                            error=error.stderr.strip()
+                        ))
+                        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+                        return result.stdout.strip()
+                    except subprocess.CalledProcessError as e:
+                        error = e
+                        continue
+        
     def generate_aws_cli_processed(self, user_prompt, system_prompt):
         generated_output = self.generate_aws_cli_commands(user_prompt, system_prompt.format(
             result=self.results,
@@ -99,28 +99,28 @@ class DevOpsAgent:
     def process_user_request(self, user_prompt):
         commands = self.generate_aws_cli_processed(user_prompt, SYS_PROMPT)
         for command in commands:
-            print(f"Executing: {command}\n")
-            result = self.execute_aws_cli_command(command)
-            self.results["commands"].append(command)
-            print(f"Result: {result}\n")
-            self.results["results"].append(result)
+            self.execute_aws_cli_command(command)
+            # self.results["commands"].append(command)
+            # self.results["results"].append(result)
 
-            if "Error" in result:
-                print("An error occurred. Stopping execution.")
-                break
+            # if "Error" in result:
+                # print("An error occurred. Stopping execution.")
+                # break
         return self.results
 
 if __name__ == "__main__":
-    account_id = input("Enter your AWS Account ID: ")
-    iam_user = input("Enter your IAM user name: ")
-    region = input("Enter your AWS region: ")
+    account_id = Prompt.ask("[bold]Enter your AWS Account ID[/bold]")
+    iam_user = Prompt.ask("[bold]Enter your IAM user name[/bold]")
+    region = Prompt.ask("[bold]Enter your AWS region[/bold]", choices=["us-west-2", "us-east-1", "us-east2"], default="us-west-2")
+
+    print("[bold green]Successfully linked your AWS account!\n[/bold green]")
 
     agent = DevOpsAgent(account_id, iam_user, region)
     
-    user_request = input("Enter your DevOps request: ")
-    result = agent.process_user_request(user_request)
+    user_request = Prompt.ask("[bold]Enter your request[/bold]")
+    agent.process_user_request(user_request)
     
-    print("\nExecution Summary:")
-    for cmd, res in zip(result["commands"], result["results"]):
-        print(f"Command: {cmd}")
-        print(f"Result: {res}\n")
+    # print("\nExecution Summary:")
+    # for cmd, res in zip(result["commands"], result["results"]):
+    #     print(f"Command: {cmd}")
+    #     print(f"Result: {res}\n")
