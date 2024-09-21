@@ -69,9 +69,8 @@ class DevOpsAgent:
                     time.sleep(15) 
                 else:
                     result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-            except e:
+            except subprocess.CalledProcessError as error:
                 # Retry three times
-                error = e
                 for _ in range(3):
                     try:
                         command = self.error_retry(RETRY_PROMPT.format(
@@ -83,6 +82,14 @@ class DevOpsAgent:
                     except subprocess.CalledProcessError as e:
                         error = e
                         continue
+                # If all retries fail
+                console.clear()
+                print("[bold red]❌ Failed to create resources after 3 attempts[/bold red]")
+                return f"Error executing AWS CLI command: {error.stderr.strip()}"
+            except Exception as e:
+                console.clear()
+                print("[bold red]❌ An unexpected error occurred[/bold red]")
+                return f"Unexpected error: {str(e)}"
         
     def generate_aws_cli_processed(self, user_prompt, system_prompt):
         generated_output = self.generate_aws_cli_commands(user_prompt, system_prompt.format(
