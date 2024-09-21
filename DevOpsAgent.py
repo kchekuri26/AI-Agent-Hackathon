@@ -17,16 +17,16 @@ IAM user: {iamUser}
 Region: {region}
 """
 class DevOpsAgent:
-    def __init__(self):
+    def __init__(self, account_id, iam_user, region):
         self.model = "claude-3-5-sonnet-20240620"
         self.client = anthropic.Anthropic()
         self.results = {
             "commands": [],
             "results": []
         }
-        self.accountId = 762233773660
-        self.iamUser = 'anna'
-        self.region = "us-west-2"
+        self.accountId = account_id
+        self.iamUser = iam_user
+        self.region = region
 
     def generate_aws_cli_commands(self, user_prompt, system_prompt):
         message = self.client.messages.create(
@@ -78,7 +78,11 @@ class DevOpsAgent:
         return self.results
 
 if __name__ == "__main__":
-    agent = DevOpsAgent()
+    account_id = input("Enter your AWS Account ID: ")
+    iam_user = input("Enter your IAM user name: ")
+    region = input("Enter your AWS region: ")
+
+    agent = DevOpsAgent(account_id, iam_user, region)
     
     user_request = input("Enter your DevOps request: ")
     result = agent.process_user_request(user_request)
