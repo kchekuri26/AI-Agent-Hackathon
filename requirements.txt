@@ -1,1 +1,6 @@
 awscli
+llamaindex
+langchain
+python-dotenv
+anthropic
+boto3
